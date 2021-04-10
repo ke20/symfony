@@ -11,6 +11,7 @@
 
 namespace Symfony\Component\Notifier\Bridge\FakeSms;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Notifier\Exception\UnsupportedSchemeException;
 use Symfony\Component\Notifier\Transport\AbstractTransportFactory;
@@ -24,12 +25,14 @@ use Symfony\Component\Notifier\Transport\TransportInterface;
 final class FakeSmsTransportFactory extends AbstractTransportFactory
 {
     protected $mailer;
+    protected $entityManager;
 
-    public function __construct(MailerInterface $mailer)
+    public function __construct(MailerInterface $mailer, EntityManagerInterface $entityManager)
     {
         parent::__construct();
 
         $this->mailer = $mailer;
+        $this->entityManager = $entityManager;
     }
 
     /**
@@ -50,10 +53,19 @@ final class FakeSmsTransportFactory extends AbstractTransportFactory
 
             return (new FakeSmsEmailTransport($this->mailer, $to, $from))->setHost($mailerTransport);
         }
+
+        if ('fakesms+database' === $scheme) {
+            return (new FakeSmsDatabaseTransport(
+                $this->entityManager,
+                $dsn->getRequiredOption('entity'),
+                $dsn->getRequiredOption('to'),
+                $dsn->getRequiredOption('from')
+            ))->setHost($dsn->getHost());
+        }
     }
 
     protected function getSupportedSchemes(): array
     {
-        return ['fakesms+email'];
+        return ['fakesms+email', 'fakesms+database'];
     }
 }
